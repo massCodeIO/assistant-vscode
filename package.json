@@ -38,6 +38,10 @@
     }
   },
   "icon": "assets/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/massCodeIO/assistant-vscode"
+},
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
