@@ -2,7 +2,7 @@
   "name": "masscode-assistant",
   "displayName": "massCode assistant",
   "description": "Fetch snippets from massCode app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "AntonReshetov",
   "engines": {
     "vscode": "^1.66.0"
