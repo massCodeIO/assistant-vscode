@@ -1,4 +1,4 @@
-# massCode assistant
+# massCode assistant fo Visual Studio Code
 
 Quick access to massCode app
 
