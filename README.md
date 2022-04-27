@@ -1,5 +1,7 @@
 # massCode assistant fo Visual Studio Code
 
+> Required version of massCode >= 2.4.0
+
 Quick access to massCode app
 
 - Fetch snippets
