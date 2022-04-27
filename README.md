@@ -7,4 +7,4 @@ Quick access to massCode app
 - Select to paste
 - Create snippets
 
-<img src="./assets/demo.gif">
+![](https://github.com/massCodeIO/assistant-vscode/raw/master/assets/demo.gif)
