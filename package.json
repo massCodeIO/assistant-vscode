@@ -2,7 +2,7 @@
   "name": "masscode-assistant",
   "displayName": "massCode assistant",
   "description": "Fetch snippets from massCode app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "AntonReshetov",
   "engines": {
     "vscode": "^1.66.0"
@@ -41,7 +41,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/massCodeIO/assistant-vscode"
-},
+  },
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
