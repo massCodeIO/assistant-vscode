@@ -4,6 +4,8 @@
 
 Quick access to massCode app
 
+![](https://github.com/massCodeIO/assistant-vscode/raw/master/assets/command.png)
+
 - Fetch snippets
 - Search snippets
 - Select to paste
