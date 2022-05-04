@@ -11,12 +11,16 @@ export function activate (context: vscode.ExtensionContext) {
           'http://localhost:3033/snippets/embed-folder'
         )
 
-        const options = data.map(i => {
-          return {
-            label: i.name || '',
-            description: `${i.content[0].language} • ${i.folder?.name || 'Inbox'}`
-          }
-        }) as vscode.QuickPickItem[]
+        const options = data
+          .filter(i => !i.isDeleted)
+          .map(i => {
+            return {
+              label: i.name || '',
+              description: `${i.content[0].language} • ${
+                i.folder?.name || 'Inbox'
+              }`
+            }
+          }) as vscode.QuickPickItem[]
 
         let snippetContent = ''
 
