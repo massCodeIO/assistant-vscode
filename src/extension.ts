@@ -11,11 +11,11 @@ export function activate (context: vscode.ExtensionContext) {
           'http://localhost:3033/snippets/embed-folder'
         )
 
-        let options:vscode.QuickPickItem[] = []
-        for (let snippet of data) {
+        const options: vscode.QuickPickItem[] = []
+        for (const snippet of data) {
           if (snippet.isDeleted) continue
 
-          for (let fragment of snippet.content) {
+          for (const fragment of snippet.content) {
             let fragmentLabel = ''
             if (snippet.content.length > 1) {
               fragmentLabel = fragment.label
@@ -36,12 +36,11 @@ export function activate (context: vscode.ExtensionContext) {
           onDidSelectItem (item: vscode.QuickPickItem) {
             const snippet = data.find(i => i.name === item.label)
             if (snippet) {
-              if (snippet.content.length == 1) {
+              if (snippet.content.length === 1) {
                 fragmentContent = snippet.content[0].value
-              }
-              else {
-              fragmentContent = snippet.content.
-                find(i => i.label === item.detail)?.value || ''
+              } else {
+                fragmentContent = snippet.content
+                  .find(i => i.label === item.detail)?.value || ''
               }
             } else {
               fragmentContent = ''
