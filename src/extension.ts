@@ -36,7 +36,15 @@ export function activate (context: vscode.ExtensionContext) {
             return acc
           }, []) as vscode.QuickPickItem[]
 
-        options.sort(i => i.picked ? -1 : 1)
+        const isExist = options.find(i => i.picked)
+
+        if (isExist) {
+          options.sort(i => i.picked ? -1 : 1)
+          options.unshift({
+            label: 'Last selected',
+            kind: -1
+          })
+        }
 
         let snippet: Snippet | undefined
         let fragmentContent = ''
