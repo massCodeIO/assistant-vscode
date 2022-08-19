@@ -15,6 +15,7 @@ export function activate (context: vscode.ExtensionContext) {
 
         const options = data
           .filter(i => !i.isDeleted)
+          .sort((a, b) => a.createdAt > b.createdAt ? -1 : 1)
           .reduce((acc: vscode.QuickPickItem[], snippet) => {
             const fragments = snippet.content.map(fragment => {
               const isLastSelected = lastSelectedId === snippet.id
