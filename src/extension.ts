@@ -11,18 +11,27 @@ export function activate (context: vscode.ExtensionContext) {
           'http://localhost:3033/snippets/embed-folder'
         )
 
-        const options = data
-          .filter(i => !i.isDeleted)
-          .map(i => {
-            return {
-              label: i.name || '',
-              description: `${i.content[0].language} • ${
-                i.folder?.name || 'Inbox'
-              }`
-            }
-          }) as vscode.QuickPickItem[]
+        const options: vscode.QuickPickItem[] = []
 
-        let snippetContent = ''
+        for (const snippet of data) {
+          if (snippet.isDeleted) continue
+
+          for (const fragment of snippet.content) {
+            let fragmentLabel = ''
+            if (snippet.content.length > 1) {
+              fragmentLabel = fragment.label
+            }
+            options.push({
+              label: `${snippet.name || ''}`,
+              detail: `${fragmentLabel}`,
+              description: `${fragment.language} • ${
+                snippet.folder?.name || 'Inbox'
+              }`
+            })
+          }
+        }
+
+        let fragmentContent = ''
 
         const picked = await vscode.window.showQuickPick(options, {
           placeHolder: 'Type to search...',
@@ -30,17 +39,22 @@ export function activate (context: vscode.ExtensionContext) {
             const snippet = data.find(i => i.name === item.label)
 
             if (snippet) {
-              snippetContent = snippet.content[0].value
+              if (snippet.content.length === 1) {
+                fragmentContent = snippet.content[0].value
+              } else {
+                fragmentContent = snippet.content
+                  .find(i => i.label === item.detail)?.value || ''
+              }
             } else {
-              snippetContent = ''
+              fragmentContent = ''
             }
           }
         })
 
         if (!picked) return
 
-        if (snippetContent.length) {
-          vscode.env.clipboard.writeText(snippetContent)
+        if (fragmentContent.length) {
+          vscode.env.clipboard.writeText(fragmentContent)
           vscode.commands.executeCommand('editor.action.clipboardPasteAction')
         }
       } catch (err) {
