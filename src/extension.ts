@@ -11,30 +11,39 @@ export function activate (context: vscode.ExtensionContext) {
           'http://localhost:3033/snippets/embed-folder'
         )
 
+        const lastSelectedId = context.globalState.get('masscode:last-selected')
+
         const options = data
           .filter(i => !i.isDeleted)
           .reduce((acc: vscode.QuickPickItem[], snippet) => {
             const fragments = snippet.content.map(fragment => {
+              const isLastSelected = lastSelectedId === snippet.id
+
               return {
-                label: snippet.name || '',
+                label: snippet.name || 'Untitled snippet',
                 detail: snippet.content.length > 1 ? fragment.label : '',
                 description: `${fragment.language} • ${
                   snippet.folder?.name || 'Inbox'
-                }`
+                }`,
+                picked: isLastSelected // use picked props to determine as last selected
+
               }
-            })
+            }) as vscode.QuickPickItem[]
 
             acc.push(...fragments)
 
             return acc
           }, []) as vscode.QuickPickItem[]
 
+        options.sort(i => i.picked ? -1 : 1)
+
+        let snippet: Snippet | undefined
         let fragmentContent = ''
 
         const picked = await vscode.window.showQuickPick(options, {
           placeHolder: 'Type to search...',
           onDidSelectItem (item: vscode.QuickPickItem) {
-            const snippet = data.find(i => i.name === item.label)
+            snippet = data.find(i => i.name === item.label)
 
             if (snippet) {
               if (snippet.content.length === 1) {
@@ -54,6 +63,7 @@ export function activate (context: vscode.ExtensionContext) {
         if (fragmentContent.length) {
           vscode.env.clipboard.writeText(fragmentContent)
           vscode.commands.executeCommand('editor.action.clipboardPasteAction')
+          context.globalState.update('masscode:last-selected', snippet?.id)
         }
       } catch (err) {
         vscode.window.showErrorMessage('massCode app is not running.')
