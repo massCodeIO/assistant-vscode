@@ -12,6 +12,7 @@ export function activate (context: vscode.ExtensionContext) {
         )
 
         const options: vscode.QuickPickItem[] = []
+
         for (const snippet of data) {
           if (snippet.isDeleted) continue
 
@@ -29,12 +30,14 @@ export function activate (context: vscode.ExtensionContext) {
             })
           }
         }
+
         let fragmentContent = ''
 
         const picked = await vscode.window.showQuickPick(options, {
           placeHolder: 'Type to search...',
           onDidSelectItem (item: vscode.QuickPickItem) {
             const snippet = data.find(i => i.name === item.label)
+
             if (snippet) {
               if (snippet.content.length === 1) {
                 fragmentContent = snippet.content[0].value
