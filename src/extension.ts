@@ -11,25 +11,23 @@ export function activate (context: vscode.ExtensionContext) {
           'http://localhost:3033/snippets/embed-folder'
         )
 
-        const options: vscode.QuickPickItem[] = []
-
-        for (const snippet of data) {
-          if (snippet.isDeleted) continue
-
-          for (const fragment of snippet.content) {
-            let fragmentLabel = ''
-            if (snippet.content.length > 1) {
-              fragmentLabel = fragment.label
-            }
-            options.push({
-              label: `${snippet.name || ''}`,
-              detail: `${fragmentLabel}`,
-              description: `${fragment.language} • ${
-                snippet.folder?.name || 'Inbox'
-              }`
+        const options = data
+          .filter(i => !i.isDeleted)
+          .reduce((acc: vscode.QuickPickItem[], snippet) => {
+            const fragments = snippet.content.map(fragment => {
+              return {
+                label: snippet.name || '',
+                detail: snippet.content.length > 1 ? fragment.label : '',
+                description: `${fragment.language} • ${
+                  snippet.folder?.name || 'Inbox'
+                }`
+              }
             })
-          }
-        }
+
+            acc.push(...fragments)
+
+            return acc
+          }, []) as vscode.QuickPickItem[]
 
         let fragmentContent = ''
 
