@@ -3,12 +3,14 @@ import axios from 'axios'
 import type { Snippet } from './types'
 
 export function activate (context: vscode.ExtensionContext) {
+  const preferences = vscode.workspace.getConfiguration('masscode-assistant')
+  const host = preferences.get('host')
   const search = vscode.commands.registerCommand(
     'masscode-assistant.search',
     async () => {
       try {
         const { data } = await axios.get<Snippet[]>(
-          'http://localhost:3033/snippets/embed-folder'
+          `http://${host}:3033/snippets/embed-folder`
         )
 
         const lastSelectedId = context.globalState.get('masscode:last-selected')
@@ -86,6 +88,7 @@ export function activate (context: vscode.ExtensionContext) {
       vscode.commands.executeCommand('editor.action.clipboardCopyAction')
 
       const preferences = vscode.workspace.getConfiguration('masscode-assistant')
+      const host = preferences.get('host')
       const isNotify = preferences.get('notify')
 
       const content = await vscode.env.clipboard.readText()
@@ -106,7 +109,7 @@ export function activate (context: vscode.ExtensionContext) {
       ]
 
       try {
-        await axios.post('http://localhost:3033/snippets/create', body)
+        await axios.post(`http://${host}:3033/snippets/create`, body)
 
         if (isNotify) {
           vscode.window.showInformationMessage('Snippet successfully created')
