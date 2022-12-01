@@ -33,6 +33,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show notification"
+        }, 
+        "masscode-assistant.host": {
+          "type":"string",
+          "default": "localhost",
+          "description": "Specifies the host of an active massCode app"
         }
       }
     }
