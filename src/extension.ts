@@ -1,124 +1,120 @@
+import type { SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
-import axios from 'axios'
-import type { Snippet } from './types'
+import { addSnippet, addSnippetContent, getSnippets } from './api'
+import { MESSAGES } from './contants'
 
-export function activate (context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   const search = vscode.commands.registerCommand(
     'masscode-assistant.search',
     async () => {
       try {
-        const { data } = await axios.get<Snippet[]>(
-          'http://localhost:3033/snippets/embed-folder'
-        )
+        const data = await getSnippets()
 
         const lastSelectedId = context.globalState.get('masscode:last-selected')
 
-        const options = data
-          .filter(i => !i.isDeleted)
-          .sort((a, b) => a.createdAt > b.createdAt ? -1 : 1)
-          .reduce((acc: vscode.QuickPickItem[], snippet) => {
-            const fragments = snippet.content.map(fragment => {
-              const isLastSelected = lastSelectedId === snippet.id
+        const options = data.reduce((acc: SnippetWithMeta[], snippet) => {
+          snippet.contents.forEach((content) => {
+            acc.push({
+              label: snippet.name,
+              detail: `${content.label} • ${content.language}`,
+              description: `${snippet.folder?.name || 'Inbox'}`,
+              picked: lastSelectedId === content.id,
+              meta: {
+                snippedId: snippet.id,
+                contentId: content.id,
+                contentValue: content.value || '',
+              },
+            })
+          })
+          return acc
+        }, [])
 
-              return {
-                label: snippet.name || 'Untitled snippet',
-                detail: snippet.content.length > 1 ? fragment.label : '',
-                description: `${fragment.language} • ${
-                  snippet.folder?.name || 'Inbox'
-                }`,
-                picked: isLastSelected // use picked props to determine as last selected
+        const latestPicked = options.find(i => i.picked)
 
-              }
-            }) as vscode.QuickPickItem[]
-
-            acc.push(...fragments)
-
-            return acc
-          }, []) as vscode.QuickPickItem[]
-
-        const isExist = options.find(i => i.picked)
-
-        if (isExist) {
-          options.sort(i => i.picked ? -1 : 1)
+        if (latestPicked) {
+          options.sort(i => (i.picked ? -1 : 1))
           options.unshift({
+            ...latestPicked,
+            kind: -1,
             label: 'Last selected',
-            kind: -1
           })
         }
 
-        let snippet: Snippet | undefined
-        let fragmentContent = ''
-
         const picked = await vscode.window.showQuickPick(options, {
           placeHolder: 'Type to search...',
-          onDidSelectItem (item: vscode.QuickPickItem) {
-            snippet = data.find(i => i.name === item.label)
-
-            if (snippet) {
-              if (snippet.content.length === 1) {
-                fragmentContent = snippet.content[0].value
-              } else {
-                fragmentContent = snippet.content
-                  .find(i => i.label === item.detail)?.value || ''
-              }
-            } else {
-              fragmentContent = ''
-            }
-          }
         })
 
-        if (!picked) return
-
-        if (fragmentContent.length) {
-          vscode.env.clipboard.writeText(fragmentContent)
+        if (picked) {
+          vscode.env.clipboard.writeText(picked.meta.contentValue)
           vscode.commands.executeCommand('editor.action.clipboardPasteAction')
-          context.globalState.update('masscode:last-selected', snippet?.id)
+          context.globalState.update(
+            'masscode:last-selected',
+            picked.meta.contentId,
+          )
         }
-      } catch (err) {
-        vscode.window.showErrorMessage('massCode app is not running.')
       }
-    }
+      catch (err) {
+        console.error(err)
+        vscode.window.showErrorMessage(MESSAGES.ERROR)
+      }
+    },
   )
 
   const create = vscode.commands.registerCommand(
     'masscode-assistant.create',
     async () => {
-      vscode.commands.executeCommand('editor.action.clipboardCopyAction')
-
-      const preferences = vscode.workspace.getConfiguration('masscode-assistant')
+      const preferences
+        = vscode.workspace.getConfiguration('masscode-assistant')
       const isNotify = preferences.get('notify')
 
-      const content = await vscode.env.clipboard.readText()
-      content.trim()
+      const editor = vscode.window.activeTextEditor
 
-      if (content.length <= 1) return
+      let content = ''
+
+      if (editor) {
+        const selection = editor.selection
+        content = editor.document.getText(selection).trim()
+      }
+
+      if (content.length <= 1) {
+        vscode.window.showErrorMessage(MESSAGES.NO_CONTENT)
+        return
+      }
 
       const name = await vscode.window.showInputBox()
-      const body: Partial<Snippet> = {}
 
-      body.name = name
-      body.content = [
-        {
-          label: 'Fragment 1',
-          value: content,
-          language: 'plain_text'
-        }
-      ]
+      if (!name)
+        return
+
+      const body: SnippetsAdd = {
+        name,
+        folderId: null,
+      }
 
       try {
-        await axios.post('http://localhost:3033/snippets/create', body)
+        const { id } = await addSnippet(body)
+
+        if (id) {
+          await addSnippetContent(id, {
+            label: 'Fragment 1',
+            value: content,
+            language: 'plain_text',
+          })
+        }
 
         if (isNotify) {
-          vscode.window.showInformationMessage('Snippet successfully created')
+          vscode.window.showInformationMessage(MESSAGES.SUCCESS)
         }
-      } catch (err) {
-        vscode.window.showErrorMessage('massCode app is not running.')
       }
-    }
+      catch (err) {
+        console.error(err)
+        vscode.window.showErrorMessage(MESSAGES.ERROR)
+      }
+    },
   )
 
   context.subscriptions.push(search)
   context.subscriptions.push(create)
 }
 
-export function deactivate () {}
+export function deactivate() {}
