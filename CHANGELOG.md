@@ -1,3 +1,11 @@
+# [2.0.0](https://github.com/massCodeIO/assistant-vscode/compare/v1.1.0...v2.0.0) (2025-06-30)
+
+BREAKING CHANGE:
+
+- Dropped support for massCode v3 due to API and architecture changes.  
+- Updated dependencies and configurations to align with massCode v4 requirements.
+
+
 # [1.1.0](https://github.com/massCodeIO/assistant-vscode/compare/v1.0.2...v1.1.0) (2022-08-19)
 
 
