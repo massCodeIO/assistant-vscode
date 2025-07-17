@@ -1,6 +1,9 @@
 # massCode assistant fo Visual Studio Code
 
-> Required version of massCode >= 2.4.0
+> **Version Compatibility:**
+> - v2.0.0+ supports massCode v4 only
+> - For massCode v3, install extension version below v2.0.0
+> - Required minimum massCode version: v2.4.0
 
 Quick access to massCode app
 
