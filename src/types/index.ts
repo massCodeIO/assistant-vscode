@@ -26,7 +26,7 @@ export interface Snippet {
 
 export interface SnippetWithMeta extends QuickPickItem {
   meta: {
-    snippedId: number
+    snippetId: number
     contentId: number
     contentValue: string
   }

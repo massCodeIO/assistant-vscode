@@ -2,7 +2,7 @@
   "publisher": "AntonReshetov",
   "name": "masscode-assistant",
   "displayName": "massCode assistant",
-  "version": "2.0.1",
+  "version": "2.2.0",
   "description": "Fetch snippets from massCode app and create new ones",
   "repository": {
     "type": "git",
@@ -40,6 +40,11 @@
           "type": "number",
           "default": 4321,
           "description": "Port number for massCode API"
+        },
+        "masscode-assistant.vaultPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the massCode Markdown Vault. If empty, the default ~/massCode/markdown-vault will be used."
         }
       }
     }

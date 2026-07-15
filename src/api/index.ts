@@ -30,16 +30,16 @@ vscode.workspace.onDidChangeConfiguration((e) => {
 
 export function getSnippets() {
   return getApiClient()
-    .get<Snippet[]>('snippets', { searchParams: { isDeleted: 0 } })
-    .json()
+    .get('snippets', { searchParams: { isDeleted: 0 } })
+    .json<Snippet[]>()
 }
 
 export function addSnippet(body: SnippetsAdd) {
-  return getApiClient().post<{ id: number }>('snippets', { json: body }).json()
+  return getApiClient().post('snippets', { json: body }).json<{ id: number }>()
 }
 
 export function addSnippetContent(snippetId: number, body: SnippetContentsAdd) {
   return getApiClient()
-    .post<{ id: number }>(`snippets/${snippetId}/contents`, { json: body })
-    .json()
+    .post(`snippets/${snippetId}/contents`, { json: body })
+    .json<{ id: number }>()
 }
