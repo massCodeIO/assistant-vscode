@@ -2,8 +2,13 @@ import type { SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
 import { addSnippet, addSnippetContent, getSnippets } from './api'
 import { MESSAGES } from './contants'
+import { findSnippetInVault, resolveVaultPath } from './vault'
+
+let logChannel: vscode.OutputChannel | undefined
 
 export function activate(context: vscode.ExtensionContext) {
+  logChannel = vscode.window.createOutputChannel('massCode Assistant')
+  context.subscriptions.push(logChannel)
   const search = vscode.commands.registerCommand(
     'masscode-assistant.search',
     async () => {
@@ -12,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const lastSelectedId = context.globalState.get('masscode:last-selected')
 
-        const options = data.reduce((acc: SnippetWithMeta[], snippet) => {
+        const options = data.reduce<SnippetWithMeta[]>((acc, snippet) => {
           snippet.contents.forEach((content) => {
             acc.push({
               label: snippet.name,
@@ -20,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
               description: `${snippet.folder?.name || 'Inbox'}`,
               picked: lastSelectedId === content.id,
               meta: {
-                snippedId: snippet.id,
+                snippetId: snippet.id,
                 contentId: content.id,
                 contentValue: content.value || '',
               },
@@ -32,21 +37,67 @@ export function activate(context: vscode.ExtensionContext) {
         const latestPicked = options.find(i => i.picked)
 
         if (latestPicked) {
-          options.sort(i => (i.picked ? -1 : 1))
+          options.sort((a, b) => {
+            const aPicked = a.picked ? 1 : 0
+            const bPicked = b.picked ? 1 : 0
+            return bPicked - aPicked
+          })
           options.unshift({
             ...latestPicked,
-            kind: -1,
+            kind: vscode.QuickPickItemKind.Default,
             label: 'Last selected',
           })
         }
 
-        const picked = await vscode.window.showQuickPick(options, {
-          placeHolder: 'Type to search...',
-        })
+        const picked = await vscode.window.showQuickPick<SnippetWithMeta>(
+          options,
+          {
+            placeHolder: 'Type to search...',
+          },
+        )
 
         if (picked) {
-          vscode.env.clipboard.writeText(picked.meta.contentValue)
-          vscode.commands.executeCommand('editor.action.clipboardPasteAction')
+          let resolvedContent = picked.meta.contentValue
+
+          if (!resolvedContent) {
+            const preferences
+              = vscode.workspace.getConfiguration('masscode-assistant')
+            const configuredVaultPath = preferences.get<string>('vaultPath', '')
+            const resolvedVaultPath = resolveVaultPath(configuredVaultPath)
+
+            try {
+              resolvedContent = await findSnippetInVault(
+                resolvedVaultPath,
+                picked.meta.snippetId,
+                picked.meta.contentId,
+              )
+            }
+            catch (error: unknown) {
+              const err = error as any
+              const errMsg
+                = `massCode Assistant: Failed to resolve snippet content.\n`
+                  + `Resolved Vault Path: ${resolvedVaultPath}\n`
+                  + `Snippet ID: ${picked.meta.snippetId}\n`
+                  + `Content ID: ${picked.meta.contentId}\n`
+                  + `Error: ${err?.message || err}`
+              logChannel?.appendLine(
+                `[Error] [${new Date().toISOString()}] ${errMsg}`,
+              )
+              vscode.window.showErrorMessage(errMsg)
+              return
+            }
+          }
+
+          const editor = vscode.window.activeTextEditor
+          if (editor) {
+            await editor.edit((editBuilder) => {
+              editBuilder.replace(editor.selection, resolvedContent)
+            })
+          }
+          else {
+            await vscode.env.clipboard.writeText(resolvedContent)
+          }
+
           context.globalState.update(
             'masscode:last-selected',
             picked.meta.contentId,
@@ -54,7 +105,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       catch (err) {
-        console.error(err)
+        logChannel?.appendLine(
+          `[Error] [${new Date().toISOString()}] Search command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        )
         vscode.window.showErrorMessage(MESSAGES.ERROR)
       }
     },
@@ -71,9 +124,21 @@ export function activate(context: vscode.ExtensionContext) {
 
       let content = ''
 
+      let language = 'plain_text'
+
       if (editor) {
         const selection = editor.selection
         content = editor.document.getText(selection).trim()
+
+        const languageId = editor.document.languageId
+        const lower = languageId ? languageId.toLowerCase() : ''
+        const map: Record<string, string> = {
+          typescriptreact: 'typescript',
+          javascriptreact: 'javascript',
+          shellscript: 'shell',
+          jsonc: 'json',
+        }
+        language = map[lower] || lower || 'plain_text'
       }
 
       if (content.length <= 1) {
@@ -98,7 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
           await addSnippetContent(id, {
             label: 'Fragment 1',
             value: content,
-            language: 'plain_text',
+            language,
           })
         }
 
@@ -107,7 +172,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       catch (err) {
-        console.error(err)
+        logChannel?.appendLine(
+          `[Error] [${new Date().toISOString()}] Create command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        )
         vscode.window.showErrorMessage(MESSAGES.ERROR)
       }
     },
