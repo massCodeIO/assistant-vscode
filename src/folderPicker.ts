@@ -2,14 +2,14 @@ import type { Folder } from './types'
 import * as vscode from 'vscode'
 
 interface FolderQuickPickItem extends vscode.QuickPickItem {
-  folderId?: number
+  folderId?: number | string
   isSaveOption?: boolean
   isFolderOption?: boolean
 }
 
 export async function showFolderPicker(
   folders: Folder[],
-): Promise<number | null | undefined> {
+): Promise<number | string | null | undefined> {
   const selection = await vscode.window.showQuickPick(
     [
       {
@@ -41,7 +41,7 @@ export async function showFolderPicker(
 
 async function showRootFolderPicker(
   folders: Folder[],
-): Promise<number | null | undefined> {
+): Promise<number | string | null | undefined> {
   const rootFolders = folders.filter(f => f.parentId === null)
 
   const items: FolderQuickPickItem[] = rootFolders.map(f => ({
@@ -63,8 +63,8 @@ async function showRootFolderPicker(
 
 async function showFolderNavigation(
   folders: Folder[],
-  folderId: number,
-): Promise<number | null | undefined> {
+  folderId: number | string,
+): Promise<number | string | null | undefined> {
   const currentFolder = folders.find(f => f.id === folderId)
   if (!currentFolder) {
     return undefined

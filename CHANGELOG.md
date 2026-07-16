@@ -1,14 +1,8 @@
-# [2.2.0](https://github.com/massCodeIO/assistant-vscode/compare/v2.1.0...v2.2.0) (2026-07-16)
+# [2.3.0](https://github.com/massCodeIO/assistant-vscode/compare/v2.2.0...v2.3.0) (2026-07-16)
 
 ### Features
 
-* **Language Detection**: Automatically detects the active editor language when creating snippets.
-
-### Fixes
-
-* **v5 Support**: Added compatibility with massCode v5.8+ Markdown Vault storage.
-* **Vault Config**: Added `masscode-assistant.vaultPath` configuration option (falls back to `~/massCode/markdown-vault` when empty).
-* **Insertion**: Fixed empty snippet insertion by replacing the clipboard workflow with the VS Code TextEditor edit API (`editor.edit`), with clipboard fallback when no active editor is available.
+* **offline:** Added offline snippet browsing and search using the Markdown Vault as an automatic fallback when the API is down.
 
 
 # [2.0.0](https://github.com/massCodeIO/assistant-vscode/compare/v1.1.0...v2.0.0) (2025-06-30)
@@ -44,6 +38,3 @@ BREAKING CHANGE:
 
 
 # 1.0.0 (2022-04-27)
-
-
-

@@ -1,19 +1,19 @@
 import type { QuickPickItem } from 'vscode'
 
 export interface Snippet {
-  id: number
+  id: number | string
   name: string
   description: string | null
   tags: {
-    id: number
+    id: number | string
     name: string
   }[]
   folder: {
-    id: number
+    id: number | string
     name: string
   } | null
   contents: {
-    id: number
+    id: number | string
     label: string
     value: string | null
     language: string
@@ -26,15 +26,15 @@ export interface Snippet {
 
 export interface SnippetWithMeta extends QuickPickItem {
   meta: {
-    snippetId: number
-    contentId: number
+    snippetId: number | string
+    contentId: number | string
     contentValue: string
   }
 }
 
 export interface SnippetsAdd {
   name: string
-  folderId: number | null
+  folderId: number | string | null
 }
 
 export interface SnippetContentsAdd {
@@ -44,7 +44,7 @@ export interface SnippetContentsAdd {
 }
 
 export interface Folder {
-  id: number
+  id: number | string
   name: string
-  parentId: number | null
+  parentId: number | string | null
 }

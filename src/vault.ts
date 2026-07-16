@@ -1,3 +1,4 @@
+import type { Snippet } from './types'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -274,4 +275,90 @@ export async function findSnippetInVault(
   throw new Error(
     `Snippet with ID ${snippetId} not found in the Markdown Vault.`,
   )
+}
+
+/**
+ * Recursively scans the Markdown Vault and parses all snippets.
+ */
+export async function loadSnippetsFromVault(
+  vaultPath: string,
+): Promise<Snippet[]> {
+  // Check if vault directory exists
+  try {
+    const stat = await fs.promises.stat(vaultPath)
+    if (!stat.isDirectory()) {
+      throw new Error(`Vault path is not a directory: ${vaultPath}`)
+    }
+  }
+  catch (error: unknown) {
+    const err = error as any
+    throw new Error(
+      `Markdown Vault directory not found or inaccessible: ${vaultPath}. Details: ${err?.message || err}`,
+    )
+  }
+
+  const files = await getMdFiles(vaultPath)
+  const snippets: Snippet[] = []
+
+  for (const file of files) {
+    try {
+      const content = await fs.promises.readFile(file, 'utf8')
+      const parts = content.split(/^---\s*$/m)
+      if (parts.length < 3)
+        continue
+
+      const frontmatter = parseFrontmatter(parts[1])
+      if (!frontmatter.id)
+        continue
+
+      const snippetName = path.basename(file, '.md')
+
+      // Resolve folder path
+      const parentDir = path.dirname(file)
+      let folder: Snippet['folder'] = null
+      if (path.resolve(parentDir) !== path.resolve(vaultPath)) {
+        const folderName = path.basename(parentDir)
+        folder = {
+          id: folderName, // Use folderName as string ID for local folders
+          name: folderName,
+        }
+      }
+
+      const body = parts.slice(2).join('---\n')
+      const contents: Snippet['contents'] = []
+
+      if (frontmatter.contents) {
+        for (const c of frontmatter.contents) {
+          if (!c.id || !c.label)
+            continue
+
+          const code = extractFencedCodeBlock(body, c.label)
+          contents.push({
+            id: c.id,
+            label: c.label,
+            value: code, // Set directly to prevent reading file again
+            language: c.language || 'plain_text',
+          })
+        }
+      }
+
+      snippets.push({
+        id: frontmatter.id,
+        name: snippetName,
+        description: null,
+        tags: [],
+        folder,
+        contents,
+        isFavorites: 0,
+        isDeleted: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      })
+    }
+    catch {
+      // Safely ignore malformed files and continue scanning
+    }
+  }
+
+  return snippets
 }

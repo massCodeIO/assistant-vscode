@@ -1,20 +1,19 @@
 import type { SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
-import { addSnippet, addSnippetContent, getFolders, getSnippets } from './api'
+import { addSnippet, addSnippetContent, getFolders, loadSnippets } from './api'
 import { MESSAGES } from './contants'
 import { showFolderPicker } from './folderPicker'
+import { getLogChannel, log } from './logger'
 import { findSnippetInVault, resolveVaultPath } from './vault'
 
-let logChannel: vscode.OutputChannel | undefined
-
 export function activate(context: vscode.ExtensionContext) {
-  logChannel = vscode.window.createOutputChannel('massCode Assistant')
-  context.subscriptions.push(logChannel)
+  context.subscriptions.push(getLogChannel())
+
   const search = vscode.commands.registerCommand(
     'masscode-assistant.search',
     async () => {
       try {
-        const data = await getSnippets()
+        const data = await loadSnippets()
 
         const lastSelectedId = context.globalState.get('masscode:last-selected')
 
@@ -81,9 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
                   + `Snippet ID: ${picked.meta.snippetId}\n`
                   + `Content ID: ${picked.meta.contentId}\n`
                   + `Error: ${err?.message || err}`
-              logChannel?.appendLine(
-                `[Error] [${new Date().toISOString()}] ${errMsg}`,
-              )
+              log(errMsg, 'Error')
               vscode.window.showErrorMessage(errMsg)
               return
             }
@@ -106,8 +103,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       catch (err) {
-        logChannel?.appendLine(
-          `[Error] [${new Date().toISOString()}] Search command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        log(
+          `Search command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+          'Error',
         )
         vscode.window.showErrorMessage(MESSAGES.ERROR)
       }
@@ -157,8 +155,9 @@ export function activate(context: vscode.ExtensionContext) {
         folders = await getFolders()
       }
       catch (err) {
-        logChannel?.appendLine(
-          `[Error] [${new Date().toISOString()}] Failed to load folders: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        log(
+          `Failed to load folders: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+          'Error',
         )
         vscode.window.showErrorMessage(
           'Failed to load folders. Make sure massCode is running.',
@@ -192,8 +191,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       catch (err) {
-        logChannel?.appendLine(
-          `[Error] [${new Date().toISOString()}] Create command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        log(
+          `Create command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+          'Error',
         )
         vscode.window.showErrorMessage(MESSAGES.ERROR)
       }
