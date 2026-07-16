@@ -1,5 +1,10 @@
 import type { KyInstance } from 'ky'
-import type { Snippet, SnippetContentsAdd, SnippetsAdd } from '../types/'
+import type {
+  Folder,
+  Snippet,
+  SnippetContentsAdd,
+  SnippetsAdd,
+} from '../types/'
 import ky from 'ky'
 import * as vscode from 'vscode'
 
@@ -42,4 +47,8 @@ export function addSnippetContent(snippetId: number, body: SnippetContentsAdd) {
   return getApiClient()
     .post(`snippets/${snippetId}/contents`, { json: body })
     .json<{ id: number }>()
+}
+
+export function getFolders() {
+  return getApiClient().get('folders').json<Folder[]>()
 }
