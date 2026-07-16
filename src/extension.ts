@@ -1,7 +1,8 @@
 import type { SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
-import { addSnippet, addSnippetContent, getSnippets } from './api'
+import { addSnippet, addSnippetContent, getFolders, getSnippets } from './api'
 import { MESSAGES } from './contants'
+import { showFolderPicker } from './folderPicker'
 import { findSnippetInVault, resolveVaultPath } from './vault'
 
 let logChannel: vscode.OutputChannel | undefined
@@ -151,9 +152,28 @@ export function activate(context: vscode.ExtensionContext) {
       if (!name)
         return
 
+      let folders
+      try {
+        folders = await getFolders()
+      }
+      catch (err) {
+        logChannel?.appendLine(
+          `[Error] [${new Date().toISOString()}] Failed to load folders: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+        )
+        vscode.window.showErrorMessage(
+          'Failed to load folders. Make sure massCode is running.',
+        )
+        return
+      }
+
+      const folderId = await showFolderPicker(folders)
+
+      if (folderId === undefined)
+        return
+
       const body: SnippetsAdd = {
         name,
-        folderId: null,
+        folderId,
       }
 
       try {

@@ -42,3 +42,9 @@ export interface SnippetContentsAdd {
   value: string | null
   language: string
 }
+
+export interface Folder {
+  id: number
+  name: string
+  parentId: number | null
+}
