@@ -46,7 +46,7 @@ export async function loadSnippets(): Promise<Snippet[]> {
   try {
     const snippets = await getSnippets()
     log('Successfully loaded snippets from API')
-    return snippets
+    return snippets.filter(s => s.isDeleted === 0)
   }
   catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err))
@@ -62,7 +62,7 @@ export async function loadSnippets(): Promise<Snippet[]> {
       log(
         `Successfully scanned Markdown Vault. Found ${snippets.length} snippets.`,
       )
-      return snippets
+      return snippets.filter(s => s.isDeleted === 0)
     }
     catch (vaultErr: unknown) {
       const vError

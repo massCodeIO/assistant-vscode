@@ -5,6 +5,7 @@ import * as path from 'node:path'
 
 export interface Frontmatter {
   id?: number | string
+  isDeleted?: number | boolean | string
   contents?: Array<{
     id?: number | string
     label?: string
@@ -120,6 +121,18 @@ export function parseFrontmatter(text: string): Frontmatter {
         if (key === 'id') {
           result.id = Number.isNaN(Number(val)) ? val : Number(val)
         }
+        else if (key === 'isDeleted') {
+          const cleanVal = val.replace(/^['"]|['"]$/g, '')
+          if (cleanVal === 'true' || cleanVal === '1') {
+            result.isDeleted = 1
+          }
+          else if (cleanVal === 'false' || cleanVal === '0') {
+            result.isDeleted = 0
+          }
+          else {
+            result.isDeleted = cleanVal
+          }
+        }
       }
     }
   }
@@ -190,6 +203,14 @@ export function extractFencedCodeBlock(
  * Recursively scans for all .md files in the given directory.
  */
 async function getMdFiles(dir: string): Promise<string[]> {
+  const normalizedDir = dir.replace(/\\/g, '/').toLowerCase()
+  if (
+    normalizedDir.endsWith('.masscode/trash')
+    || normalizedDir.includes('/.masscode/trash/')
+  ) {
+    return []
+  }
+
   const dirents = await fs.promises.readdir(dir, { withFileTypes: true })
   const files: string[] = []
   for (const dirent of dirents) {
@@ -241,6 +262,20 @@ export async function findSnippetInVault(
         continue
 
       const frontmatter = parseFrontmatter(parts[1])
+      let isDeleted = 0
+      if (
+        frontmatter.isDeleted === 1
+        || frontmatter.isDeleted === true
+        || frontmatter.isDeleted === 'true'
+        || frontmatter.isDeleted === '1'
+      ) {
+        isDeleted = 1
+      }
+
+      if (isDeleted === 1) {
+        continue
+      }
+
       if (String(frontmatter.id) === String(snippetId)) {
         const matchedContent = frontmatter.contents?.find(
           c => String(c.id) === String(contentId),
@@ -342,6 +377,16 @@ export async function loadSnippetsFromVault(
         }
       }
 
+      let isDeleted = 0
+      if (
+        frontmatter.isDeleted === 1
+        || frontmatter.isDeleted === true
+        || frontmatter.isDeleted === 'true'
+        || frontmatter.isDeleted === '1'
+      ) {
+        isDeleted = 1
+      }
+
       snippets.push({
         id: frontmatter.id,
         name: snippetName,
@@ -350,7 +395,7 @@ export async function loadSnippetsFromVault(
         folder,
         contents,
         isFavorites: 0,
-        isDeleted: 0,
+        isDeleted,
         createdAt: 0,
         updatedAt: 0,
       })
@@ -360,5 +405,5 @@ export async function loadSnippetsFromVault(
     }
   }
 
-  return snippets
+  return snippets.filter(s => s.isDeleted === 0)
 }

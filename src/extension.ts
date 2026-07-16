@@ -1,10 +1,64 @@
-import type { SnippetsAdd, SnippetWithMeta } from './types'
+import type { SnippetContentsAdd, SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
 import { addSnippet, addSnippetContent, getFolders, loadSnippets } from './api'
 import { MESSAGES } from './contants'
 import { showFolderPicker } from './folderPicker'
 import { getLogChannel, log } from './logger'
 import { findSnippetInVault, resolveVaultPath } from './vault'
+
+async function getErrorMessage(err: unknown): Promise<string> {
+  let message = ''
+  if (err instanceof Error) {
+    message += ` ${err.message}`
+  }
+  if (err && typeof err === 'object') {
+    if (
+      'response' in err
+      && err.response
+      && typeof (err.response as any).clone === 'function'
+    ) {
+      try {
+        const responseText = await (err.response as any).clone().text()
+        message += ` ${responseText}`
+      }
+      catch {
+        // ignore
+      }
+    }
+  }
+  return message.toLowerCase()
+}
+
+async function addSnippetContentWithRetry(
+  snippetId: number | string,
+  body: SnippetContentsAdd,
+  maxAttempts = 5,
+  delayMs = 500,
+): Promise<any> {
+  let attempt = 0
+  while (true) {
+    attempt++
+    try {
+      return await addSnippetContent(snippetId, body)
+    }
+    catch (err: unknown) {
+      const errorMsg = await getErrorMessage(err)
+      const isCloudStorageError = errorMsg.includes(
+        'still downloading from cloud storage',
+      )
+
+      if (isCloudStorageError && attempt < maxAttempts) {
+        log(
+          `addSnippetContent attempt ${attempt} failed with cloud storage error. Retrying in ${delayMs}ms...`,
+        )
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        continue
+      }
+
+      throw err
+    }
+  }
+}
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(getLogChannel())
@@ -160,7 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
           'Error',
         )
         vscode.window.showErrorMessage(
-          'Failed to load folders. Make sure massCode is running.',
+          'Creating snippets requires the massCode application to be running. Offline mode currently supports browsing and inserting snippets only.',
         )
         return
       }
@@ -175,15 +229,25 @@ export function activate(context: vscode.ExtensionContext) {
         folderId,
       }
 
+      let isCloudStorageError = false
       try {
         const { id } = await addSnippet(body)
 
         if (id) {
-          await addSnippetContent(id, {
-            label: 'Fragment 1',
-            value: content,
-            language,
-          })
+          try {
+            await addSnippetContentWithRetry(id, {
+              label: 'Fragment 1',
+              value: content,
+              language,
+            })
+          }
+          catch (err: unknown) {
+            const errorMsg = await getErrorMessage(err)
+            if (errorMsg.includes('still downloading from cloud storage')) {
+              isCloudStorageError = true
+            }
+            throw err
+          }
         }
 
         if (isNotify) {
@@ -195,7 +259,16 @@ export function activate(context: vscode.ExtensionContext) {
           `Create command failed: ${err instanceof Error ? err.stack || err.message : String(err)}`,
           'Error',
         )
-        vscode.window.showErrorMessage(MESSAGES.ERROR)
+        if (isCloudStorageError) {
+          vscode.window.showErrorMessage(
+            'massCode is still preparing the new snippet. Please wait a few seconds and try again.',
+          )
+        }
+        else {
+          vscode.window.showErrorMessage(
+            'Creating snippets requires the massCode application to be running. Offline mode currently supports browsing and inserting snippets only.',
+          )
+        }
       }
     },
   )

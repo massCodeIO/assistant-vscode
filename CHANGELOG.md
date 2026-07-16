@@ -1,3 +1,10 @@
+## 2.3.1
+
+### Fixed
+
+- Excluded deleted (Trash) snippets from Offline Browsing.
+- Improved the error message shown when creating snippets while the massCode application is not running.
+
 # [2.3.0](https://github.com/massCodeIO/assistant-vscode/compare/v2.2.0...v2.3.0) (2026-07-16)
 
 ### Features
