@@ -1,7 +1,14 @@
 import type { SnippetsAdd, SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
-import { addSnippet, addSnippetContent, getSnippets } from './api'
+import {
+  addSnippet,
+  addSnippetContent,
+  getFolders,
+  getSnippet,
+  getSnippets,
+} from './api'
 import { MESSAGES } from './contants'
+import { showFolderPicker } from './folderPicker'
 
 export function activate(context: vscode.ExtensionContext) {
   const search = vscode.commands.registerCommand(
@@ -12,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const lastSelectedId = context.globalState.get('masscode:last-selected')
 
-        const options = data.reduce((acc: SnippetWithMeta[], snippet) => {
+        const options = data.reduce<SnippetWithMeta[]>((acc, snippet) => {
           snippet.contents.forEach((content) => {
             acc.push({
               label: snippet.name,
@@ -20,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
               description: `${snippet.folder?.name || 'Inbox'}`,
               picked: lastSelectedId === content.id,
               meta: {
-                snippedId: snippet.id,
+                snippetId: snippet.id,
                 contentId: content.id,
                 contentValue: content.value || '',
               },
@@ -32,21 +39,42 @@ export function activate(context: vscode.ExtensionContext) {
         const latestPicked = options.find(i => i.picked)
 
         if (latestPicked) {
-          options.sort(i => (i.picked ? -1 : 1))
+          options.sort((a, b) => {
+            const aPicked = a.picked ? 1 : 0
+            const bPicked = b.picked ? 1 : 0
+            return bPicked - aPicked
+          })
           options.unshift({
             ...latestPicked,
-            kind: -1,
+            kind: vscode.QuickPickItemKind.Default,
             label: 'Last selected',
           })
         }
 
-        const picked = await vscode.window.showQuickPick(options, {
-          placeHolder: 'Type to search...',
-        })
+        const picked = await vscode.window.showQuickPick<SnippetWithMeta>(
+          options,
+          {
+            placeHolder: 'Type to search...',
+          },
+        )
 
         if (picked) {
-          vscode.env.clipboard.writeText(picked.meta.contentValue)
-          vscode.commands.executeCommand('editor.action.clipboardPasteAction')
+          const snippetDetails = await getSnippet(picked.meta.snippetId)
+          const content = snippetDetails.contents.find(
+            c => c.id === picked.meta.contentId,
+          )
+          const resolvedContent = content?.value || ''
+
+          const editor = vscode.window.activeTextEditor
+          if (editor) {
+            await editor.edit((editBuilder) => {
+              editBuilder.replace(editor.selection, resolvedContent)
+            })
+          }
+          else {
+            await vscode.env.clipboard.writeText(resolvedContent)
+          }
+
           context.globalState.update(
             'masscode:last-selected',
             picked.meta.contentId,
@@ -55,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
       catch (err) {
         console.error(err)
-        vscode.window.showErrorMessage(MESSAGES.ERROR)
+        await handleApiError(err, MESSAGES.ERROR)
       }
     },
   )
@@ -71,9 +99,21 @@ export function activate(context: vscode.ExtensionContext) {
 
       let content = ''
 
+      let language = 'plain_text'
+
       if (editor) {
         const selection = editor.selection
         content = editor.document.getText(selection).trim()
+
+        const languageId = editor.document.languageId
+        const lower = languageId ? languageId.toLowerCase() : ''
+        const map: Record<string, string> = {
+          typescriptreact: 'typescript',
+          javascriptreact: 'javascript',
+          shellscript: 'shell',
+          jsonc: 'json',
+        }
+        language = map[lower] || lower || 'plain_text'
       }
 
       if (content.length <= 1) {
@@ -86,9 +126,27 @@ export function activate(context: vscode.ExtensionContext) {
       if (!name)
         return
 
+      let folders
+      try {
+        folders = await getFolders()
+      }
+      catch (err) {
+        console.error(err)
+        await handleApiError(
+          err,
+          'Failed to load folders. Make sure massCode is running.',
+        )
+        return
+      }
+
+      const folderId = await showFolderPicker(folders)
+
+      if (folderId === undefined)
+        return
+
       const body: SnippetsAdd = {
         name,
-        folderId: null,
+        folderId,
       }
 
       try {
@@ -98,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
           await addSnippetContent(id, {
             label: 'Fragment 1',
             value: content,
-            language: 'plain_text',
+            language,
           })
         }
 
@@ -108,7 +166,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
       catch (err) {
         console.error(err)
-        vscode.window.showErrorMessage(MESSAGES.ERROR)
+        await handleApiError(err, MESSAGES.ERROR)
       }
     },
   )
@@ -118,3 +176,29 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+async function handleApiError(err: any, defaultMsg: string) {
+  if (err && (err.name === 'HTTPError' || err.response)) {
+    let details = ''
+    try {
+      const response = err.response.clone()
+      const body = await response.json()
+      details
+        = body?.message || body?.error || (typeof body === 'string' ? body : '')
+    }
+    catch {
+      try {
+        const response = err.response.clone()
+        details = await response.text()
+      }
+      catch {}
+    }
+    const suffix = details ? `: ${details}` : ''
+    vscode.window.showErrorMessage(
+      `massCode API Error (${err.response.status} ${err.response.statusText})${suffix}`,
+    )
+  }
+  else {
+    vscode.window.showErrorMessage(defaultMsg)
+  }
+}
