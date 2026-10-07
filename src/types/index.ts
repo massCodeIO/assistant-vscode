@@ -1,6 +1,6 @@
 import type { QuickPickItem } from 'vscode'
 
-export interface Snippet {
+interface SnippetBase {
   id: number
   name: string
   description: string | null
@@ -12,33 +12,34 @@ export interface Snippet {
     id: number
     name: string
   } | null
-  contents: {
-    id: number
-    label: string
-    value: string | null
-    language: string
-  }[]
   isFavorites: number
   isDeleted: number
   createdAt: number
   updatedAt: number
 }
 
+// GET /snippets отдаёт фрагменты без value
+export interface SnippetListItem extends SnippetBase {
+  contents: {
+    id: number
+    label: string
+    language: string
+  }[]
+}
+
+export interface Snippet extends SnippetBase {
+  contents: {
+    id: number
+    label: string
+    // null, если содержимое недоступно (например, файл ещё не скачан из облака)
+    value: string | null
+    language: string
+  }[]
+}
+
 export interface SnippetWithMeta extends QuickPickItem {
   meta: {
-    snippedId: number
+    snippetId: number
     contentId: number
-    contentValue: string
   }
-}
-
-export interface SnippetsAdd {
-  name: string
-  folderId: number | null
-}
-
-export interface SnippetContentsAdd {
-  label: string
-  value: string | null
-  language: string
 }
