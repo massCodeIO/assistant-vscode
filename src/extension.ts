@@ -1,7 +1,25 @@
-import type { SnippetsAdd, SnippetWithMeta } from './types'
+import type { SnippetWithMeta } from './types'
 import * as vscode from 'vscode'
-import { addSnippet, addSnippetContent, getSnippets } from './api'
+import { createSnippet, getErrorMessage, getSnippet, getSnippets } from './api'
 import { MESSAGES } from './contants'
+
+async function showError(err: unknown) {
+  console.error(err)
+  const message = await getErrorMessage(err)
+
+  if (message !== MESSAGES.UNAUTHORIZED) {
+    vscode.window.showErrorMessage(message)
+    return
+  }
+
+  const action = await vscode.window.showErrorMessage(
+    message,
+    MESSAGES.SET_TOKEN,
+  )
+
+  if (action === MESSAGES.SET_TOKEN)
+    vscode.commands.executeCommand('masscode-assistant.setToken')
+}
 
 export function activate(context: vscode.ExtensionContext) {
   const search = vscode.commands.registerCommand(
@@ -20,9 +38,8 @@ export function activate(context: vscode.ExtensionContext) {
               description: `${snippet.folder?.name || 'Inbox'}`,
               picked: lastSelectedId === content.id,
               meta: {
-                snippedId: snippet.id,
+                snippetId: snippet.id,
                 contentId: content.id,
-                contentValue: content.value || '',
               },
             })
           })
@@ -45,7 +62,18 @@ export function activate(context: vscode.ExtensionContext) {
         })
 
         if (picked) {
-          vscode.env.clipboard.writeText(picked.meta.contentValue)
+          const snippet = await getSnippet(picked.meta.snippetId)
+          const value = snippet.contents.find(
+            i => i.id === picked.meta.contentId,
+          )?.value
+
+          // Пустая строка валидна, недоступен только отсутствующий фрагмент или null
+          if (value === undefined || value === null) {
+            vscode.window.showErrorMessage(MESSAGES.CONTENT_UNAVAILABLE)
+            return
+          }
+
+          await vscode.env.clipboard.writeText(value)
           vscode.commands.executeCommand('editor.action.clipboardPasteAction')
           context.globalState.update(
             'masscode:last-selected',
@@ -54,8 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       catch (err) {
-        console.error(err)
-        vscode.window.showErrorMessage(MESSAGES.ERROR)
+        await showError(err)
       }
     },
   )
@@ -86,35 +113,43 @@ export function activate(context: vscode.ExtensionContext) {
       if (!name)
         return
 
-      const body: SnippetsAdd = {
-        name,
-        folderId: null,
-      }
-
       try {
-        const { id } = await addSnippet(body)
-
-        if (id) {
-          await addSnippetContent(id, {
-            label: 'Fragment 1',
-            value: content,
-            language: 'plain_text',
-          })
-        }
+        await createSnippet(name, content)
 
         if (isNotify) {
           vscode.window.showInformationMessage(MESSAGES.SUCCESS)
         }
       }
       catch (err) {
-        console.error(err)
-        vscode.window.showErrorMessage(MESSAGES.ERROR)
+        await showError(err)
       }
+    },
+  )
+
+  const setToken = vscode.commands.registerCommand(
+    'masscode-assistant.setToken',
+    async () => {
+      const token = await vscode.window.showInputBox({
+        prompt: MESSAGES.TOKEN_PROMPT,
+        placeHolder: 'mc_...',
+        password: true,
+        ignoreFocusOut: true,
+      })
+
+      if (!token?.trim())
+        return
+
+      await vscode.workspace
+        .getConfiguration('masscode-assistant')
+        .update('token', token.trim(), vscode.ConfigurationTarget.Global)
+
+      vscode.window.showInformationMessage(MESSAGES.TOKEN_SAVED)
     },
   )
 
   context.subscriptions.push(search)
   context.subscriptions.push(create)
+  context.subscriptions.push(setToken)
 }
 
 export function deactivate() {}
